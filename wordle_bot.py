@@ -35,8 +35,7 @@ class WordleBot(object):
                     count += 1
         
         self._key_prefix = [str(i) for i in range(num_chars)]
-        self._search_space = set(range(0, len(self._word_list)))
-
+    
 
     def char_to_dict(self, input_string):
         ret_dict = {}
@@ -53,44 +52,39 @@ class WordleBot(object):
         for i, c in enumerate(guess):
             f = feedback[i]
             if f == "g":
-                output_str += TGREEN + c 
+                output_str += TGREEN + c.upper() + null_char
             elif f == "y":
-                output_str += TYELLOW + c
+                output_str += TYELLOW + c.upper() + null_char
             elif f == "b": 
-                output_str += TRED + c
+                output_str += TRED + c.upper() + null_char
 
-        return output_str + null_char
+        return output_str
 
 
 
     def compare(self, target, query):
         feedback_list = [None] * self._num_chars
+        matches = set()
 
-        if isinstance(target, str):
-            target = self.char_to_dict(target)
+        for i, c in enumerate(query):
+            target_char = target[i]
+            if c == target_char:
+                feedback_list[i] = "g"
+                matches.add(c)
+            elif c not in target:
+                feedback_list[i] = "b"
 
-        if isinstance(query, str):
-            query = self.char_to_dict(query)
-
-        visited = set()
-
-        for k, indices in query.items():
-            if k not in target:
-                for i in indices:
+        for i, item in enumerate(feedback_list):
+            if item is None:
+                c = query[i]
+                if c in matches:
                     feedback_list[i] = "b"
-            else:
-                target_indices = target[k] 
-                for i in indices:
-                    if i in target_indices:
-                        feedback_list[i] = "g"
-                        visited.add(k)
-                    elif k not in visited:
-                        feedback_list[i] = "y"
-                        visited.add(k)
-                    else:
-                        feedback_list[i] = "b"
-                
+                else:
+                    feedback_list[i] = "y"
+                    matches.add(c)
+            
         feedback = "".join(feedback_list)
+
         return feedback
 
 
@@ -150,26 +144,31 @@ class WordleBot(object):
         target = target.lower()
         if initial_guess is None:
             initial_guess = random.choice(self._word_list)
+        
+        self._initial_guess = initial_guess
+        self._search_space = set(range(0, len(self._word_list)))
 
         cur_iter = 0
         current_guess = initial_guess
-        target_dict = self.char_to_dict(target)
 
-        while not self._solved and cur_iter < self._num_attempts:
-            # print(f"-----------Iteration:{cur_iter + 1}-----------")
-            current_feedback = self.compare(target_dict, current_guess)
-            # print(f"Current Guess {current_guess} {}{current_feedback}")
+        while not self._solved and cur_iter < self._num_attempts:                
+            current_feedback = self.compare(target, current_guess)
+            if self._verbose:
+                print(f"-----------Iteration:{cur_iter + 1}-----------")
+                print(f"Current Guess {current_guess} ({current_feedback})")
             cur_iter += 1
             if current_feedback == "g" * self._num_chars:
                 # print("Solved!")
                 break
             self._search_space = self.prune(current_feedback, current_guess)
-            # print(f"Current Search Space:{len(self._search_space)}({len(self._word_list)})")
-            if self._verbose and len(self._search_space) < 6:
-                self.print_search_space()
+            if self._verbose:
+                print(f"Current Search Space:{len(self._search_space)}({len(self._word_list)})")
+                if len(self._search_space) < 6:
+                    self.print_search_space()
+                print("-" * 50)
+                
             current_index = random.sample(self._search_space, 1)[0]
             current_guess = self._word_list[current_index]
-            # print("-" * 50)
         
         self._total_iter = cur_iter
 
@@ -178,14 +177,14 @@ class WordleBot(object):
 
         cur_iter = 0
         target = random.choice(self._word_list)
-        target_dict = self.char_to_dict(target)
+        print("Enter a 5 letter word")
 
         while cur_iter < self._num_attempts:
-            current_guess = input(f"Enter a {self._num_chars} letter word: ")
+            current_guess = input(f"{cur_iter + 1}/{self._num_attempts} ")
 
             if len(current_guess) !=5:
                 continue
-            current_feedback = self.compare(target_dict, current_guess)
+            current_feedback = self.compare(target, current_guess)
             pretty_string = self.pretty_print_feedback(current_guess, current_feedback)
             print(f"{cur_iter + 1}/{self._num_attempts}: {pretty_string}")
 
@@ -195,7 +194,7 @@ class WordleBot(object):
         
             cur_iter += 1
         
-        print(f"Exhausted {self._num_attempts}. The word was: {target}")
+        print(f"Tough Luck. The word was: {target.upper()}")
 
 
 
